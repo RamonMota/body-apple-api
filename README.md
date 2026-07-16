@@ -64,6 +64,7 @@ As variáveis `NODE_ENV`, `PORT` e `FRONTEND_URL` são validadas ao iniciar a ap
 | `npm test`                | Executa os testes unitários                      |
 | `npm run test:watch`      | Executa testes em modo watch                     |
 | `npm run test:cov`        | Gera cobertura de testes                         |
+| `npm run test:db`         | Testa a conexão real com o PostgreSQL            |
 | `npm run test:e2e`        | Executa os testes de ponta a ponta               |
 
 ## Desenvolvimento
@@ -76,7 +77,9 @@ Por padrão, a API fica disponível em `http://localhost:3333/api`.
 
 ## Prisma e Supabase
 
-O Prisma CLI usa `DIRECT_URL`, evitando executar migrations pelo pooler em transaction mode. A futura conexão da aplicação deverá usar `DATABASE_URL`.
+O Prisma CLI usa `DIRECT_URL`, evitando executar migrations pelo pooler em transaction mode. Em runtime, o `PrismaService` usa `DATABASE_URL` com `@prisma/adapter-pg`.
+
+O `PrismaModule` é global e disponibiliza uma única instância reutilizável do client. A conexão é aberta durante a inicialização do módulo e encerrada pelo ciclo de vida do NestJS no shutdown.
 
 No Prisma 7, as URLs ficam em `prisma.config.ts`; por isso o bloco `datasource` de `prisma/schema.prisma` contém apenas o provider PostgreSQL.
 
@@ -84,6 +87,7 @@ Depois de preencher o `.env.local`, valide a configuração:
 
 ```bash
 npm run prisma:validate
+npm run test:db
 ```
 
 ## Health check
@@ -108,6 +112,7 @@ src/
 ├── common/       # Recursos compartilhados entre módulos
 ├── config/       # Configuração e validação do ambiente
 ├── health/       # Endpoint de verificação da API
+├── prisma/       # Módulo e service de acesso ao PostgreSQL
 ├── app.module.ts # Módulo raiz
 └── main.ts       # Bootstrap e configurações globais
 ```
@@ -119,5 +124,5 @@ O projeto segue a arquitetura modular do NestJS. Cada novo domínio deve ser iso
 ## Próximos passos
 
 - Definir os primeiros models e migrations
-- Integrar o Prisma Client a um módulo do NestJS
+- Criar os módulos de domínio que utilizarão o PrismaService
 - Implementar autenticação
