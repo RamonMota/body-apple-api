@@ -335,3 +335,23 @@ Ao ajudar neste projeto:
 11. Não expor segredos nem recomendar que sejam versionados.
 12. Consultar primeiro os arquivos relevantes do repositório quando uma resposta
     depender de detalhes de implementação.
+
+
+## 16. DOMÍNIO DE ROTINAS
+
+O módulo `src/routines/` implementa o CRUD de planejamentos do personal
+autenticado em `/api/routines`. O controller aplica `AuthGuard`, os DTOs validam
+e transformam params, query e body, e o service escopa todas as operações pelo
+`authUserId` derivado do JWT.
+
+O model `TrainingRoutine` pertence a `Trainer`, usa exclusão lógica e possui o
+status controlado `draft | active | archived`. `startDate` e `endDate` são datas
+civis opcionais persistidas como PostgreSQL `DATE` e serializadas na API como
+`YYYY-MM-DD`.
+
+O contrato HTTP completo, exemplos, paginação, erros e regras de período estão
+documentados em `docs/routines-api.md`.
+
+Esta etapa não inclui treinos dentro da rotina, exercícios, execução,
+atribuição a alunos, expiração automática, exclusão física, versionamento ou
+clonagem.

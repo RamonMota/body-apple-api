@@ -105,6 +105,19 @@ Resposta:
 }
 ```
 
+## Autocadastro de alunos
+
+O personal pode gerar um código público permanente e revogável para permitir o
+autocadastro de alunos. O contrato, os exemplos de integração e as limitações de
+segurança estão documentados em
+[`docs/students-self-registration.md`](docs/students-self-registration.md).
+
+## Rotinas
+
+O CRUD autenticado de rotinas do personal está disponível em `/api/routines`.
+Campos, datas civis, paginação, regras de período e exemplos estão documentados
+em [`docs/routines-api.md`](docs/routines-api.md).
+
 ## Estrutura de pastas
 
 ```text

@@ -5,6 +5,7 @@ import configuration from './config/configuration';
 import { validateEnvironment } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RoutinesModule } from './routines/routines.module';
 import { StudentsModule } from './students/students.module';
 import { TrainersModule } from './trainers/trainers.module';
 
@@ -20,6 +21,7 @@ import { TrainersModule } from './trainers/trainers.module';
     AuthModule,
     HealthModule,
     PrismaModule,
+    RoutinesModule,
     StudentsModule,
     TrainersModule,
   ],

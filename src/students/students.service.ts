@@ -11,6 +11,7 @@ import {
 } from '../../generated/prisma/client';
 import { AuthenticatedUser } from '../auth/authenticated-user.type';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateSelfRegisteredStudentDto } from './dto/create-self-registered-student.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { ListStudentsQueryDto } from './dto/list-students-query.dto';
 import { normalizePhone } from './dto/student-field.transforms';
@@ -55,6 +56,30 @@ export class StudentsService {
       });
     } catch (error) {
       this.translateWriteError(error);
+    }
+  }
+
+  async createFromRegistrationLink(
+    token: string,
+    dto: CreateSelfRegisteredStudentDto,
+  ): Promise<StudentView> {
+    const phone = this.requireNormalizedPhone(dto.phone);
+
+    try {
+      return await this.prisma.student.create({
+        data: {
+          trainer: { connect: { studentRegistrationToken: token } },
+          fullName: dto.fullName.trim(),
+          phone,
+          birthDate: dto.birthDate,
+          gender: dto.gender,
+          status: StudentStatus.active,
+          registrationSource: StudentRegistrationSource.selfRegistration,
+        },
+        select: studentSelect,
+      });
+    } catch (error) {
+      this.translateSelfRegistrationWriteError(error);
     }
   }
 
@@ -212,6 +237,20 @@ export class StudentsService {
 
       if (error.code === 'P2025') {
         throw new NotFoundException('Perfil do personal não encontrado');
+      }
+    }
+
+    throw error;
+  }
+
+  private translateSelfRegistrationWriteError(error: unknown): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        throw new ConflictException('Não foi possível concluir o cadastro');
+      }
+
+      if (error.code === 'P2025') {
+        throw new NotFoundException('Link de cadastro inválido ou desativado');
       }
     }
 

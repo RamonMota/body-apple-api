@@ -23,11 +23,15 @@ describe('Trainer profile (e2e)', () => {
     createdAt: new Date('2026-07-17T12:00:00.000Z'),
     updatedAt: new Date('2026-07-17T12:00:00.000Z'),
   };
+  const registrationToken = 'a'.repeat(43);
   let app: INestApplication<App>;
   let trainersService: {
     createProfile: jest.Mock;
     getProfile: jest.Mock;
     updateProfile: jest.Mock;
+    getStudentRegistrationLink: jest.Mock;
+    createStudentRegistrationLink: jest.Mock;
+    deleteStudentRegistrationLink: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -37,6 +41,13 @@ describe('Trainer profile (e2e)', () => {
       updateProfile: jest
         .fn()
         .mockResolvedValue({ ...profile, name: 'Novo Nome' }),
+      getStudentRegistrationLink: jest
+        .fn()
+        .mockResolvedValue({ token: registrationToken }),
+      createStudentRegistrationLink: jest
+        .fn()
+        .mockResolvedValue({ token: registrationToken }),
+      deleteStudentRegistrationLink: jest.fn().mockResolvedValue(undefined),
     };
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [TrainersController],
@@ -168,5 +179,38 @@ describe('Trainer profile (e2e)', () => {
       .expect(400);
 
     expect(trainersService.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('GET /api/trainers/student-registration-link consulta o link ativo', async () => {
+    await request(app.getHttpServer())
+      .get('/api/trainers/student-registration-link')
+      .expect(200)
+      .expect({ token: registrationToken });
+
+    expect(trainersService.getStudentRegistrationLink).toHaveBeenCalledWith(
+      user,
+    );
+  });
+
+  it('POST /api/trainers/student-registration-link gera ou rotaciona o link', async () => {
+    await request(app.getHttpServer())
+      .post('/api/trainers/student-registration-link')
+      .expect(201)
+      .expect({ token: registrationToken });
+
+    expect(trainersService.createStudentRegistrationLink).toHaveBeenCalledWith(
+      user,
+    );
+  });
+
+  it('DELETE /api/trainers/student-registration-link desativa o link', async () => {
+    await request(app.getHttpServer())
+      .delete('/api/trainers/student-registration-link')
+      .expect(204)
+      .expect('');
+
+    expect(trainersService.deleteStudentRegistrationLink).toHaveBeenCalledWith(
+      user,
+    );
   });
 });

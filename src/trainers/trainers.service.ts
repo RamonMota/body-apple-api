@@ -3,12 +3,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import { AuthenticatedUser } from '../auth/authenticated-user.type';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTrainerProfileDto } from './dto/create-trainer-profile.dto';
 import { UpdateTrainerProfileDto } from './dto/update-trainer-profile.dto';
+import { StudentRegistrationLink } from './student-registration-link.type';
 import { TrainerProfile } from './trainer-profile.type';
+
+const STUDENT_REGISTRATION_TOKEN_BYTES = 32;
 
 const trainerProfileSelect = {
   id: true,
@@ -80,5 +84,74 @@ export class TrainersService {
 
       throw error;
     }
+  }
+
+  async getStudentRegistrationLink(
+    user: AuthenticatedUser,
+  ): Promise<StudentRegistrationLink> {
+    const trainer = await this.prisma.trainer.findUnique({
+      where: { authUserId: user.id },
+      select: { studentRegistrationToken: true },
+    });
+
+    if (!trainer) {
+      throw this.trainerNotFound();
+    }
+
+    if (!trainer.studentRegistrationToken) {
+      throw new NotFoundException('Link de cadastro não encontrado');
+    }
+
+    return { token: trainer.studentRegistrationToken };
+  }
+
+  async createStudentRegistrationLink(
+    user: AuthenticatedUser,
+  ): Promise<StudentRegistrationLink> {
+    const token = randomBytes(STUDENT_REGISTRATION_TOKEN_BYTES).toString(
+      'base64url',
+    );
+
+    try {
+      const trainer = await this.prisma.trainer.update({
+        where: { authUserId: user.id },
+        data: { studentRegistrationToken: token },
+        select: { studentRegistrationToken: true },
+      });
+
+      return { token: trainer.studentRegistrationToken! };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw this.trainerNotFound();
+      }
+
+      throw error;
+    }
+  }
+
+  async deleteStudentRegistrationLink(user: AuthenticatedUser): Promise<void> {
+    try {
+      await this.prisma.trainer.update({
+        where: { authUserId: user.id },
+        data: { studentRegistrationToken: null },
+        select: { id: true },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw this.trainerNotFound();
+      }
+
+      throw error;
+    }
+  }
+
+  private trainerNotFound(): NotFoundException {
+    return new NotFoundException('Perfil do personal não encontrado');
   }
 }

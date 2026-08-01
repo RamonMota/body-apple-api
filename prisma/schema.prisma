@@ -8,15 +8,36 @@ datasource db {
 }
 
 model Trainer {
-  id         String    @id @default(uuid())
-  authUserId String?   @unique @map("auth_user_id")
-  name       String
-  email      String    @unique
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
-  students   Student[]
+  id                       String            @id @default(uuid())
+  authUserId               String?           @unique @map("auth_user_id")
+  name                     String
+  email                    String            @unique
+  studentRegistrationToken String?           @unique @map("student_registration_token")
+  createdAt                DateTime          @default(now()) @map("created_at")
+  updatedAt                DateTime          @updatedAt @map("updated_at")
+  students                 Student[]
+  trainingRoutines         TrainingRoutine[]
 
   @@map("trainers")
+}
+
+model TrainingRoutine {
+  id                 String                @id @default(uuid())
+  trainerId          String                @map("trainer_id")
+  name               String
+  startDate          DateTime?             @map("start_date") @db.Date
+  endDate            DateTime?             @map("end_date") @db.Date
+  removeOnExpiration Boolean               @default(false) @map("remove_on_expiration")
+  instructions       String?
+  status             TrainingRoutineStatus @default(draft)
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+  deletedAt          DateTime?             @map("deleted_at")
+  trainer            Trainer               @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+
+  @@index([trainerId, deletedAt, status])
+  @@index([trainerId, createdAt, id])
+  @@map("training_routines")
 }
 
 model Student {
@@ -56,6 +77,15 @@ enum StudentStatus {
 
 enum StudentRegistrationSource {
   trainer
+  selfRegistration @map("self_registration")
 
   @@map("student_registration_source")
+}
+
+enum TrainingRoutineStatus {
+  draft
+  active
+  archived
+
+  @@map("training_routine_status")
 }

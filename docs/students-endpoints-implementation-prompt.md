@@ -25,6 +25,10 @@ Métodos HTTP e paths:
 3. GET /api/students/:studentId
 4. PATCH /api/students/:studentId
 5. DELETE /api/students/:studentId
+6. GET /api/trainers/student-registration-link
+7. POST /api/trainers/student-registration-link
+8. DELETE /api/trainers/student-registration-link
+9. POST /api/public/student-registrations/:token
 
 Quem pode executar:
 Todos os endpoints são privados. O usuário deve apresentar um access token
@@ -180,6 +184,9 @@ Observações:
 - Não há Swagger/OpenAPI configurado no estado atual observado. Se documentar o
   contrato exigir adicionar essa infraestrutura, apresente-a separadamente e
   não inclua dependência nova sem necessidade aprovada.
+- O autocadastro público e o gerenciamento do código permanente estão
+  especificados em `docs/students-self-registration.md`; preserve esse contrato
+  ao consolidar os endpoints.
 ```
 
 ## Prompt para o agente responsável

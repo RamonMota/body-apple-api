@@ -16,6 +16,7 @@ describe('TrainersService', () => {
     createdAt: new Date('2026-07-17T12:00:00.000Z'),
     updatedAt: new Date('2026-07-17T12:00:00.000Z'),
   };
+  const registrationToken = 'a'.repeat(43);
   let prisma: {
     trainer: {
       create: jest.Mock;
@@ -107,5 +108,72 @@ describe('TrainersService', () => {
     await expect(
       service.updateProfile(user, { name: 'Novo Nome' }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('consulta o link permanente do personal autenticado', async () => {
+    prisma.trainer.findUnique.mockResolvedValue({
+      studentRegistrationToken: registrationToken,
+    });
+
+    await expect(service.getStudentRegistrationLink(user)).resolves.toEqual({
+      token: registrationToken,
+    });
+    expect(prisma.trainer.findUnique).toHaveBeenCalledWith({
+      where: { authUserId: user.id },
+      select: { studentRegistrationToken: true },
+    });
+  });
+
+  it('retorna 404 quando o link está desativado', async () => {
+    prisma.trainer.findUnique.mockResolvedValue({
+      studentRegistrationToken: null,
+    });
+
+    await expect(service.getStudentRegistrationLink(user)).rejects.toThrow(
+      'Link de cadastro não encontrado',
+    );
+  });
+
+  it('gera ou rotaciona um token público aleatório para o próprio personal', async () => {
+    prisma.trainer.update.mockImplementation(
+      ({ data }: { data: { studentRegistrationToken: string } }) =>
+        Promise.resolve({
+          studentRegistrationToken: data.studentRegistrationToken,
+        }),
+    );
+
+    const result = await service.createStudentRegistrationLink(user);
+
+    expect(result.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(prisma.trainer.update).toHaveBeenCalledWith({
+      where: { authUserId: user.id },
+      data: { studentRegistrationToken: result.token },
+      select: { studentRegistrationToken: true },
+    });
+  });
+
+  it('desativa o link sem excluir o perfil do personal', async () => {
+    prisma.trainer.update.mockResolvedValue({ id: profile.id });
+
+    await expect(
+      service.deleteStudentRegistrationLink(user),
+    ).resolves.toBeUndefined();
+    expect(prisma.trainer.update).toHaveBeenCalledWith({
+      where: { authUserId: user.id },
+      data: { studentRegistrationToken: null },
+      select: { id: true },
+    });
+  });
+
+  it('retorna 404 ao gerar link para perfil inexistente', async () => {
+    const error = new Prisma.PrismaClientKnownRequestError('not found', {
+      code: 'P2025',
+      clientVersion: '7.8.0',
+    });
+    prisma.trainer.update.mockRejectedValue(error);
+
+    await expect(service.createStudentRegistrationLink(user)).rejects.toThrow(
+      'Perfil do personal não encontrado',
+    );
   });
 });

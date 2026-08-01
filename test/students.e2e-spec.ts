@@ -13,6 +13,7 @@ import {
 } from '../generated/prisma/client';
 import { AuthGuard } from '../src/auth/auth.guard';
 import { AuthenticatedUser } from '../src/auth/authenticated-user.type';
+import { PublicStudentRegistrationsController } from '../src/students/public-student-registrations.controller';
 import { StudentsController } from '../src/students/students.controller';
 import { StudentsService } from '../src/students/students.service';
 
@@ -34,6 +35,7 @@ describe('Students (e2e)', () => {
     updatedAt: new Date('2026-07-21T12:00:00.000Z'),
     deletedAt: null,
   };
+  const registrationToken = 'a'.repeat(43);
   let app: INestApplication<App>;
   let studentsService: {
     createForTrainer: jest.Mock;
@@ -41,6 +43,7 @@ describe('Students (e2e)', () => {
     getForTrainer: jest.Mock;
     updateForTrainer: jest.Mock;
     deleteForTrainer: jest.Mock;
+    createFromRegistrationLink: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -55,9 +58,13 @@ describe('Students (e2e)', () => {
         .fn()
         .mockResolvedValue({ ...student, status: StudentStatus.inactive }),
       deleteForTrainer: jest.fn().mockResolvedValue(undefined),
+      createFromRegistrationLink: jest.fn().mockResolvedValue({
+        ...student,
+        registrationSource: StudentRegistrationSource.selfRegistration,
+      }),
     };
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      controllers: [StudentsController],
+      controllers: [StudentsController, PublicStudentRegistrationsController],
       providers: [{ provide: StudentsService, useValue: studentsService }],
     })
       .overrideGuard(AuthGuard)
@@ -186,6 +193,65 @@ describe('Students (e2e)', () => {
       .expect(400);
 
     expect(studentsService.createForTrainer).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/public/student-registrations/:token permite autocadastro sem JWT', async () => {
+    await request(app.getHttpServer())
+      .post(`/api/public/student-registrations/${registrationToken}`)
+      .send({
+        fullName: '  Ana Silva  ',
+        phone: '(85) 99999-9999',
+        birthDate: '1995-05-20',
+        gender: StudentGender.female,
+      })
+      .expect(201)
+      .expect({
+        ...student,
+        registrationSource: StudentRegistrationSource.selfRegistration,
+        birthDate: student.birthDate.toISOString(),
+        createdAt: student.createdAt.toISOString(),
+        updatedAt: student.updatedAt.toISOString(),
+      });
+
+    expect(studentsService.createFromRegistrationLink).toHaveBeenCalledWith(
+      registrationToken,
+      {
+        fullName: 'Ana Silva',
+        phone: '+5585999999999',
+        birthDate: new Date('1995-05-20T00:00:00.000Z'),
+        gender: StudentGender.female,
+      },
+    );
+  });
+
+  it('POST /api/public/student-registrations/:token rejeita token malformado', async () => {
+    await request(app.getHttpServer())
+      .post('/api/public/student-registrations/token-curto')
+      .send({
+        fullName: 'Ana Silva',
+        phone: '(85) 99999-9999',
+        birthDate: '1995-05-20',
+        gender: StudentGender.female,
+      })
+      .expect(400);
+
+    expect(studentsService.createFromRegistrationLink).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/public/student-registrations/:token rejeita status e campos internos', async () => {
+    await request(app.getHttpServer())
+      .post(`/api/public/student-registrations/${registrationToken}`)
+      .send({
+        fullName: 'Ana Silva',
+        phone: '(85) 99999-9999',
+        birthDate: '1995-05-20',
+        gender: StudentGender.female,
+        status: StudentStatus.inactive,
+        trainerId: 'outro-personal',
+      })
+      .expect(400);
+
+    expect(studentsService.createFromRegistrationLink).not.toHaveBeenCalled();
   });
 
   it('GET /api/students transforma paginação, busca e status', async () => {

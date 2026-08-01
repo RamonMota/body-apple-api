@@ -31,6 +31,7 @@ describe('StudentsService', () => {
     updatedAt: new Date('2026-07-21T12:00:00.000Z'),
     deletedAt: null,
   };
+  const registrationToken = 'a'.repeat(43);
   let prisma: {
     student: {
       create: jest.Mock;
@@ -99,6 +100,74 @@ describe('StudentsService', () => {
         gender: student.gender,
       }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('cria autocadastro pelo token público sem aceitar identidade do browser', async () => {
+    const selfRegisteredStudent = {
+      ...student,
+      registrationSource: StudentRegistrationSource.selfRegistration,
+    };
+    prisma.student.create.mockResolvedValue(selfRegisteredStudent);
+
+    await expect(
+      service.createFromRegistrationLink(registrationToken, {
+        fullName: '  Ana Silva  ',
+        phone: '(85) 99999-9999',
+        birthDate: student.birthDate,
+        gender: StudentGender.female,
+      }),
+    ).resolves.toEqual(selfRegisteredStudent);
+    expect(prisma.student.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          trainer: {
+            connect: { studentRegistrationToken: registrationToken },
+          },
+          fullName: 'Ana Silva',
+          phone: '+5585999999999',
+          birthDate: student.birthDate,
+          gender: StudentGender.female,
+          status: StudentStatus.active,
+          registrationSource: StudentRegistrationSource.selfRegistration,
+        },
+      }),
+    );
+  });
+
+  it('não revela se o conflito público foi causado pelo telefone', async () => {
+    prisma.student.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('unique', {
+        code: 'P2002',
+        clientVersion: '7.8.0',
+      }),
+    );
+
+    await expect(
+      service.createFromRegistrationLink(registrationToken, {
+        fullName: student.fullName,
+        phone: student.phone,
+        birthDate: student.birthDate,
+        gender: student.gender,
+      }),
+    ).rejects.toThrow('Não foi possível concluir o cadastro');
+  });
+
+  it('retorna 404 genérico para token inexistente ou desativado', async () => {
+    prisma.student.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('not found', {
+        code: 'P2025',
+        clientVersion: '7.8.0',
+      }),
+    );
+
+    await expect(
+      service.createFromRegistrationLink(registrationToken, {
+        fullName: student.fullName,
+        phone: student.phone,
+        birthDate: student.birthDate,
+        gender: student.gender,
+      }),
+    ).rejects.toThrow('Link de cadastro inválido ou desativado');
   });
 
   it('lista com paginação, busca, status, exclusão lógica e escopo do personal', async () => {
