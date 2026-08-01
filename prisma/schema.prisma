@@ -8,12 +8,54 @@ datasource db {
 }
 
 model Trainer {
-  id         String   @id @default(uuid())
-  authUserId String?  @unique @map("auth_user_id")
+  id         String    @id @default(uuid())
+  authUserId String?   @unique @map("auth_user_id")
   name       String
-  email      String   @unique
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  email      String    @unique
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  students   Student[]
 
   @@map("trainers")
+}
+
+model Student {
+  id                 String                    @id @default(uuid())
+  trainerId          String                    @map("trainer_id")
+  fullName           String                    @map("full_name")
+  phone              String                    @unique
+  birthDate          DateTime                  @map("birth_date") @db.Date
+  gender             StudentGender
+  status             StudentStatus             @default(active)
+  registrationSource StudentRegistrationSource @default(trainer) @map("registration_source")
+  createdAt          DateTime                  @default(now()) @map("created_at")
+  updatedAt          DateTime                  @updatedAt @map("updated_at")
+  deletedAt          DateTime?                 @map("deleted_at")
+  trainer            Trainer                   @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+
+  @@index([trainerId, deletedAt, status])
+  @@index([trainerId, fullName, id])
+  @@map("students")
+}
+
+enum StudentGender {
+  male
+  female
+  nonBinary      @map("non_binary")
+  preferNotToSay @map("prefer_not_to_say")
+
+  @@map("student_gender")
+}
+
+enum StudentStatus {
+  active
+  inactive
+
+  @@map("student_status")
+}
+
+enum StudentRegistrationSource {
+  trainer
+
+  @@map("student_registration_source")
 }

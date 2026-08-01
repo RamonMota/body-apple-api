@@ -8,10 +8,10 @@ interface EnvironmentVariables {
   FRONTEND_URL: string;
   DATABASE_URL?: string;
   DIRECT_URL?: string;
-  SUPABASE_URL?: string;
+  SUPABASE_URL: string;
   SUPABASE_ANON_KEY?: string;
-  SUPABASE_JWT_ISSUER?: string;
-  SUPABASE_JWKS_URL?: string;
+  SUPABASE_JWT_ISSUER: string;
+  SUPABASE_JWKS_URL: string;
 }
 
 function readNodeEnvironment(value: unknown): NodeEnvironment {
@@ -77,6 +77,29 @@ function readOptionalString(
   return value;
 }
 
+function readRequiredHttpUrl(
+  config: Record<string, unknown>,
+  key: string,
+): string {
+  const value = config[key];
+
+  if (typeof value !== 'string' || value === '') {
+    throw new Error(`${key} é obrigatória`);
+  }
+
+  try {
+    const url = new URL(value);
+
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error();
+    }
+  } catch {
+    throw new Error(`${key} deve ser uma URL HTTP ou HTTPS válida`);
+  }
+
+  return value;
+}
+
 export function validateEnvironment(
   config: Record<string, unknown>,
 ): EnvironmentVariables {
@@ -86,9 +109,9 @@ export function validateEnvironment(
     FRONTEND_URL: readFrontendUrl(config.FRONTEND_URL),
     DATABASE_URL: readOptionalString(config, 'DATABASE_URL'),
     DIRECT_URL: readOptionalString(config, 'DIRECT_URL'),
-    SUPABASE_URL: readOptionalString(config, 'SUPABASE_URL'),
+    SUPABASE_URL: readRequiredHttpUrl(config, 'SUPABASE_URL'),
     SUPABASE_ANON_KEY: readOptionalString(config, 'SUPABASE_ANON_KEY'),
-    SUPABASE_JWT_ISSUER: readOptionalString(config, 'SUPABASE_JWT_ISSUER'),
-    SUPABASE_JWKS_URL: readOptionalString(config, 'SUPABASE_JWKS_URL'),
+    SUPABASE_JWT_ISSUER: readRequiredHttpUrl(config, 'SUPABASE_JWT_ISSUER'),
+    SUPABASE_JWKS_URL: readRequiredHttpUrl(config, 'SUPABASE_JWKS_URL'),
   };
 }
